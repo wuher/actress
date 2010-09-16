@@ -1,0 +1,31 @@
+# Implements the stack example from Gul Agha's dissertation in a RESTful
+# setting. In contrast to the original stack example, here the behavior
+# is split into two depending whether the stack contains anything. This is
+# to avoid using any special NIL marker as in the original.
+
+empty_stack = 
+  GET ->
+    send 404 to customer;
+  PUT ->
+    send 405 to customer;
+  POST[content] ->
+    become (new stack(content, self))
+    send 201[self] to customer;
+  DELETE ->
+    send 405 to customer;
+
+stack(content, link) = 
+  GET ->
+    send 200[content] to customer;
+  PUT[c] ->
+    become (new stack(c, link))
+    send 200[self] to customer;
+  POST[c] ->
+    let p = new stack(content, link) 
+    	r = new stack(c, p) in {
+      become r
+      send 201[r] to customer
+    };
+  DELETE ->
+    become link
+    send 200[content] to customer;

@@ -1,0 +1,55 @@
+ometa Caol <: Parser {
+  isMethod :m = ?Caol._isMethod(m),
+  isKeyword :k = ?Caol._isKeyword(k),
+
+  fromTo :x :y = seq(x) (~seq(y) char)* seq(y),
+  space = super(#space) | fromTo('#', '\n'),
+
+  digit = super(#digit):d -> ['digit', d],
+  iName = letter:first (letter | '_')*:rest -> ([first].concat(rest)).join(''),
+  name = iName:n -> ['name', n],
+  methodname = iName:n isMethod(n) -> ['methodname', n],
+  keyword = iName:n isKeyword(n) -> [n, n],
+  special = ('(' | ')' | '[' | ']' | '{' | '}' | '=' | ',' | ';' | ``->''):s 
+            -> [s, s],
+
+  tok = space* (keyword | methodname | name | special | digit),
+  token :tt = tok:t ?(t[0] === tt) -> t[1],
+
+  prog = behavior+:b space* end -> b,
+  behavior = "name":n params:fs "=" stmt+:stmts -> ['bdef', n, fs, stmts],
+  param = "name",
+  params = "(" listOf(#param, ","):fs ")" -> fs
+         | empty -> [],
+  stmt =  match 
+       | "become" expr:e -> ['become', e]
+       | "send" message:m "to" "name":n -> ['send', m, n]
+       | "let" binding+:bs "in" "{" stmt+:stmts "}" -> ['let', bs, stmts],
+  
+  message = "digit":a "digit":b "digit":c "[" expr:e "]" 
+  	      -> ['code', [a, b, c].join(''), e]
+	  | "digit":a "digit":b "digit":c
+	      -> ['code', [a, b, c].join('')],
+
+  match = method:m "->" stmt+:stmts ";" -> ['match', m, stmts],
+  method = "methodname":m "[" "name":n "]" -> [m, n]
+         | "methodname":m -> [m],
+
+  binding = "name":n "=" expr:e -> [n, e],
+
+  expr = "(" expr:e ")" -> e
+       | "self"
+       | "new" "name":n "(" listOf(#expr, ","):ps ")" -> ['new', n, ps]
+       | "name":n -> ['var', n]
+}
+
+var methods = ["GET", "POST", "PUT", "DELETE"];
+var keywords = ["become", "send", "to", "self", "new", "let", "in"];
+
+Caol._isMethod = function(m) {
+  return (methods.indexOf(m) === -1 ? false : true);
+};
+
+Caol._isKeyword = function(k) {
+  return (keywords.indexOf(k) === -1 ? false : true);
+};
